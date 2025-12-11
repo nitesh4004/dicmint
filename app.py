@@ -21,14 +21,13 @@ except Exception:
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="iLoveDocs - Free Document Tools",
-    page_icon="❤",
+    page_title="DocMint - Free Document Tools",
+    page_icon="🍃",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # --- 2. SESSION STATE MANAGEMENT ---
-# This handles the "Single Page App" feel without reloading the script from scratch
 if 'current_tool' not in st.session_state:
     st.session_state['current_tool'] = "Home"
 
@@ -38,79 +37,103 @@ def navigate_to(tool_name):
 def go_home():
     st.session_state['current_tool'] = "Home"
 
-# --- 3. CUSTOM CSS (BRANDING) ---
+# --- 3. CUSTOM CSS (UI/UX & THEME COMPATIBILITY) ---
 st.markdown("""
 <style>
-    /* Main Background */
-    .stApp {
-        background-color: #f3f4f6;
+    /* Global Text Visibility Fix */
+    body, .stMarkdown, .stButton, p, h1, h2, h3 {
+        color: inherit !important;
     }
-    
-    /* Red Navbar */
+
+    /* Navbar Styling */
     .nav-container {
-        background-color: #E53935;
-        padding: 1rem 2rem;
-        color: white;
-        border-radius: 0 0 10px 10px;
+        background: linear-gradient(90deg, #2E7D32, #4CAF50); /* Minty Green Theme */
+        padding: 1.5rem;
+        border-radius: 0 0 15px 15px;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
     
-    /* Tool Cards (Buttons) */
+    .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .app-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: white !important;
+        margin: 0;
+        line-height: 1.2;
+    }
+    
+    .app-subtitle {
+        font-size: 1.1rem;
+        font-weight: 400;
+        color: rgba(255,255,255,0.9) !important;
+    }
+
+    /* Tool Cards (Grid Buttons) - Adaptive Theme */
     div.stButton > button {
-        background-color: white;
-        color: #333;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 25px 10px;
+        background-color: var(--secondary-background-color);
+        color: var(--text-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        border-radius: 15px;
+        padding: 20px 10px;
         height: 100%;
         width: 100%;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        min-height: 150px;
+        min-height: 140px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     
-    /* Hover Effect for Cards */
+    /* Hover Effect */
     div.stButton > button:hover {
-        border-color: #E53935;
+        border-color: #4CAF50;
         transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(229, 57, 53, 0.15);
-        color: #E53935;
+        box-shadow: 0 8px 20px rgba(76, 175, 80, 0.2);
+        color: #4CAF50 !important;
     }
-    
-    /* Paragraph text inside buttons (description) */
-    div.stButton > button p {
-        font-size: 0.9rem;
-        color: #666;
-        margin-top: 5px;
-    }
-    
-    /* Action Buttons (Upload/Download) - Make them Red */
+
+    /* Action Buttons (Submit/Download) */
     div.stDownloadButton > button, div.stFormSubmitButton > button {
-        background-color: #E53935 !important;
+        background-color: #2E7D32 !important;
         color: white !important;
         border: none !important;
-        font-weight: bold;
-        width: 100%;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+    }
+    
+    div.stDownloadButton > button:hover, div.stFormSubmitButton > button:hover {
+        background-color: #1B5E20 !important;
+        color: white !important;
     }
 
-    /* Back Button */
-    .back-btn {
-        background: none;
-        border: 1px solid white;
-        color: white;
-        padding: 5px 15px;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
     }
-
-    /* Hide Default Streamlit Sidebar elements */
-    [data-testid="stSidebarNav"] {display: none;}
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: var(--secondary-background-color);
+        border-radius: 10px 10px 0 0;
+        padding: 0 20px;
+        border: 1px solid transparent;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #2E7D32 !important;
+        color: white !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -126,104 +149,164 @@ def create_zip(files_dict, zip_name):
 # --- 5. UI RENDERERS ---
 
 def render_header():
-    """Renders the Red Navbar with Back button logic"""
-    col1, col2 = st.columns([1, 10])
-    with col1:
-        if st.session_state['current_tool'] != "Home":
-            if st.button("⬅ Home", key="home_btn"):
-                go_home()
-                st.rerun()
-    with col2:
-        tool_display = st.session_state['current_tool'] if st.session_state['current_tool'] != "Home" else "Every tool you need"
-        st.markdown(f"<div style='font-size:2rem; font-weight:800; color:#E53935;'>❤ iLoveDocs <span style='font-size:1.2rem; color:#666; font-weight:400;'>| {tool_display}</span></div>", unsafe_allow_html=True)
-    st.markdown("---")
+    """Renders the Header with Branding and Navigation"""
+    tool_display = st.session_state['current_tool']
+    
+    # Using raw=true to ensure image loads directly
+    logo_url = "https://github.com/nitesh4004/Ni30-pdflover/blob/main/docmint.png?raw=true"
+    
+    # Custom HTML Header
+    st.markdown(f"""
+    <div class="nav-container">
+        <div class="logo-container">
+            <img src="{logo_url}" alt="DocMint Logo" style="height: 60px; width: auto; border-radius: 8px;">
+            <div>
+                <p class="app-title">DocMint</p>
+            </div>
+        </div>
+        <div>
+            <p class="app-subtitle">{tool_display if tool_display != "Home" else "Fresh tools for your docs"}</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Back Button Logic
+    if st.session_state['current_tool'] != "Home":
+        if st.button("⬅ Back to Dashboard", key="home_btn"):
+            go_home()
+            st.rerun()
+        st.markdown("---")
+
+def render_tool_card(tool_info, col):
+    """Helper to render a single tool card inside a column"""
+    with col:
+        label = f"{tool_info['icon']}\n\n{tool_info['name']}"
+        if st.button(label, key=tool_info['id'], use_container_width=True, help=tool_info['desc']):
+            navigate_to(tool_info['name'])
+            st.rerun()
 
 def render_home():
-    """Renders the Dashboard Grid"""
-    st.markdown("<h3 style='text-align: center; color: #555; margin-bottom: 40px;'>Select a tool to begin processing your documents</h3>", unsafe_allow_html=True)
+    """Renders the Dashboard with Tabs"""
     
-    # Tool Definitions
-    tools = [
-        {"name": "Merge PDF", "icon": "🔗", "desc": "Combine PDFs in the order you want.", "id": "merge_pdf"},
-        {"name": "Split PDF", "icon": "✂️", "desc": "Separate one page or a whole set.", "id": "split_pdf"},
-        {"name": "PDF to JPG", "icon": "🖼️", "desc": "Convert each PDF page to an image.", "id": "pdf_to_img"},
-        {"name": "PDF Text", "icon": "📝", "desc": "Extract text and data from PDF.", "id": "pdf_text"},
-        {"name": "Image Editor", "icon": "🎨", "desc": "Crop, resize and apply filters.", "id": "img_editor"},
-        {"name": "Img Convert", "icon": "🔄", "desc": "Convert to PNG, JPG, BMP, etc.", "id": "img_convert"},
-        {"name": "JPG to PDF", "icon": "📑", "desc": "Turn your images into a PDF.", "id": "img_to_pdf"},
-        {"name": "Merge PPTX", "icon": "📊", "desc": "Combine PowerPoint slides.", "id": "merge_pptx"},
-        {"name": "PPTX Text", "icon": "📄", "desc": "Read text from presentations.", "id": "pptx_text"},
+    # Define Tools by Category
+    pdf_tools = [
+        {"name": "Merge PDF", "icon": "🔗", "desc": "Combine PDFs in specific order.", "id": "merge_pdf"},
+        {"name": "Split PDF", "icon": "✂️", "desc": "Separate pages.", "id": "split_pdf"},
+        {"name": "PDF to JPG", "icon": "🖼️", "desc": "Convert PDF pages to images.", "id": "pdf_to_img"},
+        {"name": "PDF Text", "icon": "📝", "desc": "Extract text data.", "id": "pdf_text"},
+    ]
+    
+    img_tools = [
+        {"name": "Image Editor", "icon": "🎨", "desc": "Crop, rotate, filter.", "id": "img_editor"},
+        {"name": "Img Convert", "icon": "🔄", "desc": "Change format (PNG/JPG).", "id": "img_convert"},
+        {"name": "JPG to PDF", "icon": "📑", "desc": "Images to PDF.", "id": "img_to_pdf"},
+    ]
+    
+    ppt_tools = [
+        {"name": "Merge PPTX", "icon": "📊", "desc": "Combine slides.", "id": "merge_pptx"},
+        {"name": "PPTX Text", "icon": "📄", "desc": "Read presentation text.", "id": "pptx_text"},
     ]
 
-    # Dynamic Grid Layout (3 columns)
-    cols = st.columns(3)
-    for i, tool in enumerate(tools):
-        with cols[i % 3]:
-            # Button content with icon and text
-            label = f"{tool['icon']}\n\n**{tool['name']}**\n\n{tool['desc']}"
-            if st.button(label, key=tool['id'], use_container_width=True):
-                navigate_to(tool['name'])
-                st.rerun()
+    # Tabs Layout
+    tab1, tab2, tab3 = st.tabs(["📄 PDF Tools", "🖼️ Image Tools", "📊 PPT & Others"])
+
+    with tab1:
+        st.caption("Manipulate your PDF documents.")
+        cols = st.columns(4)
+        for i, tool in enumerate(pdf_tools):
+            render_tool_card(tool, cols[i % 4])
+
+    with tab2:
+        st.caption("Edit and convert your images.")
+        cols = st.columns(4)
+        for i, tool in enumerate(img_tools):
+            render_tool_card(tool, cols[i % 4])
+            
+    with tab3:
+        st.caption("PowerPoint and other utilities.")
+        cols = st.columns(4)
+        for i, tool in enumerate(ppt_tools):
+            render_tool_card(tool, cols[i % 4])
 
 # --- 6. TOOL LOGIC ---
 
 def tool_merge_pdf():
-    st.info("Select multiple PDF files to combine them into one document.")
-    uploaded_pdfs = st.file_uploader("Upload PDFs", type="pdf", accept_multiple_files=True)
+    st.info("Combine multiple PDFs into one. Reorder them using the list below.")
+    uploaded_pdfs = st.file_uploader("Upload PDF files", type="pdf", accept_multiple_files=True)
     
     if uploaded_pdfs:
-        st.success(f"✅ {len(uploaded_pdfs)} files selected")
-        if st.button("Merge PDFs"):
-            with st.spinner("Merging..."):
-                merger = PdfWriter()
-                for pdf in uploaded_pdfs:
-                    merger.append(pdf)
-                output = BytesIO()
-                merger.write(output)
-                st.balloons()
-                st.download_button("Download Merged PDF", output.getvalue(), "ilovedocs_merged.pdf", "application/pdf")
+        # Create a mapping of Name -> FileObject
+        file_map = {file.name: file for file in uploaded_pdfs}
+        file_names = list(file_map.keys())
+        
+        st.write("### ↕️ Set Order")
+        st.write("Select the files in the order you want them to appear in the final PDF. You can drag tags to reorder.")
+        
+        selected_order = st.multiselect(
+            "File Order (Left is first, Right is last):", 
+            options=file_names, 
+            default=file_names
+        )
+        
+        if len(selected_order) > 0:
+            if st.button("Merge Files"):
+                with st.spinner("Merging in progress..."):
+                    merger = PdfWriter()
+                    for name in selected_order:
+                        merger.append(file_map[name])
+                    
+                    output = BytesIO()
+                    merger.write(output)
+                    st.success("✅ PDF Merged Successfully!")
+                    st.download_button(
+                        label="Download Merged PDF", 
+                        data=output.getvalue(), 
+                        file_name="docmint_merged.pdf", 
+                        mime="application/pdf"
+                    )
 
 def tool_split_pdf():
-    st.info("Split a PDF into single pages or extract specific pages.")
+    st.info("Split a PDF into single pages or extract specific ones.")
     uploaded_pdf = st.file_uploader("Upload PDF", type="pdf")
     
     if uploaded_pdf:
         reader = PdfReader(uploaded_pdf)
-        st.write(f"**Total Pages:** {len(reader.pages)}")
+        total_pages = len(reader.pages)
+        st.write(f"**Total Pages Detected:** {total_pages}")
         
-        mode = st.radio("Split Mode", ["Extract Specific Page", "Split All Pages"])
+        mode = st.radio("Select Action:", ["Extract Specific Page", "Split All Pages into ZIP"])
         
         if mode == "Extract Specific Page":
-            page_num = st.number_input("Page Number", 1, len(reader.pages), 1)
-            if st.button("Extract Page"):
+            page_num = st.number_input("Enter Page Number", 1, total_pages, 1)
+            if st.button("Download Page"):
                 writer = PdfWriter()
                 writer.add_page(reader.pages[page_num-1])
                 out = BytesIO()
                 writer.write(out)
                 st.download_button(f"Download Page {page_num}", out.getvalue(), f"page_{page_num}.pdf", "application/pdf")
         else:
-            if st.button("Split All & Zip"):
+            if st.button("Process & Download ZIP"):
                 files = {}
-                for i in range(len(reader.pages)):
+                for i in range(total_pages):
                     w = PdfWriter()
                     w.add_page(reader.pages[i])
                     o = BytesIO()
                     w.write(o)
                     files[f"page_{i+1}.pdf"] = o.getvalue()
-                zip_data = create_zip(files, "split_files.zip")
-                st.download_button("Download ZIP", zip_data, "split_files.zip", "application/zip")
+                
+                zip_data = create_zip(files, "docmint_split.zip")
+                st.download_button("Download ZIP File", zip_data, "docmint_split.zip", "application/zip")
 
 def tool_pdf_to_img():
     if not HAS_PDF2IMAGE:
-        st.error("⚠️ This feature requires the 'Poppler' system library, which is not installed.")
-        st.write("If running locally: Install Poppler. If on Cloud: Add `poppler-utils` to packages.txt.")
+        st.error("⚠️ System dependency 'Poppler' is missing. This tool works best on local setups with Poppler installed.")
         return
         
     st.info("Convert PDF pages into high-quality JPG images.")
     uploaded_pdf = st.file_uploader("Upload PDF", type="pdf")
     if uploaded_pdf:
-        if st.button("Convert to JPG"):
-            with st.spinner("Converting..."):
+        if st.button("Convert to Images"):
+            with st.spinner("Processing pages..."):
                 try:
                     images = convert_from_bytes(uploaded_pdf.read())
                     files = {}
@@ -231,105 +314,113 @@ def tool_pdf_to_img():
                         b = BytesIO()
                         img.save(b, format="JPEG")
                         files[f"page_{i+1}.jpg"] = b.getvalue()
-                        if i < 3: st.image(img, width=200, caption=f"Page {i+1}")
                     
-                    zip_data = create_zip(files, "pdf_images.zip")
-                    st.success(f"Converted {len(images)} pages.")
-                    st.download_button("Download Images (ZIP)", zip_data, "pdf_images.zip", "application/zip")
+                    zip_data = create_zip(files, "docmint_images.zip")
+                    st.success(f"Successfully converted {len(images)} pages.")
+                    st.download_button("Download Images (ZIP)", zip_data, "docmint_images.zip", "application/zip")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error processing file: {e}")
 
 def tool_img_editor():
-    st.info("Upload an image to rotate, resize, or apply filters.")
+    st.info("Upload an image to edit.")
     uploaded = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
     if uploaded:
         img = Image.open(uploaded)
-        st.image(img, width=300, caption="Original")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.image(img, use_container_width=True, caption="Original")
         
         with st.form("edit_form"):
+            st.write("### Edit Options")
             c1, c2 = st.columns(2)
             with c1:
-                angle = st.slider("Rotate", 0, 360, 0)
-                filter_t = st.selectbox("Filter", ["None", "Grayscale", "Blur", "Detail", "Contour"])
+                angle = st.slider("Rotate (Degrees)", 0, 360, 0)
+                filter_t = st.selectbox("Apply Filter", ["None", "Grayscale", "Blur", "Sharpen", "Contour"])
             with c2:
-                width = st.number_input("Width (px)", value=img.width)
-                height = st.number_input("Height (px)", value=img.height)
+                new_w = st.number_input("Target Width (px)", value=img.width)
+                new_h = st.number_input("Target Height (px)", value=img.height)
             
-            resize = st.checkbox("Apply Resize")
-            submitted = st.form_submit_button("Apply & Process")
+            resize_check = st.checkbox("Apply Resize Dimensions")
+            submitted = st.form_submit_button("Apply Changes")
             
         if submitted:
             processed = img.copy()
-            if resize:
-                processed = processed.resize((int(width), int(height)))
+            if resize_check:
+                processed = processed.resize((int(new_w), int(new_h)))
             if angle != 0:
                 processed = processed.rotate(angle, expand=True)
             
             if filter_t == "Grayscale": processed = ImageOps.grayscale(processed)
             elif filter_t == "Blur": processed = processed.filter(ImageFilter.BLUR)
-            elif filter_t == "Detail": processed = processed.filter(ImageFilter.DETAIL)
+            elif filter_t == "Sharpen": processed = processed.filter(ImageFilter.SHARPEN)
             elif filter_t == "Contour": processed = processed.filter(ImageFilter.CONTOUR)
             
-            st.image(processed, width=300, caption="Result")
-            b = BytesIO()
-            processed.save(b, format="PNG")
-            st.download_button("Download Result", b.getvalue(), "edited_image.png", "image/png")
+            with col2:
+                st.image(processed, use_container_width=True, caption="Edited Result")
+                b = BytesIO()
+                fmt = img.format if img.format else "PNG"
+                processed.save(b, format=fmt)
+                st.download_button("Download Image", b.getvalue(), f"edited_image.{fmt.lower()}", f"image/{fmt.lower()}")
 
 def tool_img_convert():
-    st.info("Convert image formats (e.g., PNG to JPG, WEBP to PNG).")
+    st.info("Convert image formats easily.")
     uploaded = st.file_uploader("Upload Image", type=["png", "jpg", "tiff", "bmp", "webp"])
     if uploaded:
         img = Image.open(uploaded)
-        st.write(f"Original Format: **{img.format}**")
-        target = st.selectbox("Convert to", ["PNG", "JPEG", "PDF", "WEBP", "ICO"])
+        st.write(f"Current Format: **{img.format}**")
+        target = st.selectbox("Convert To:", ["PNG", "JPEG", "PDF", "WEBP", "ICO"])
         
-        if st.button("Convert"):
+        if st.button("Convert File"):
             b = BytesIO()
             img_s = img.copy()
-            # JPEGs don't support transparency (RGBA), convert to RGB
             if target == "JPEG" and img_s.mode in ("RGBA", "P"): 
                 img_s = img_s.convert("RGB")
             
-            img_s.save(b, format=target)
-            mime = "application/pdf" if target == "PDF" else f"image/{target.lower()}"
-            st.download_button(f"Download {target}", b.getvalue(), f"converted.{target.lower()}", mime)
+            save_fmt = "JPEG" if target == "JPEG" else target
+            img_s.save(b, format=save_fmt)
+            
+            mime_type = "application/pdf" if target == "PDF" else f"image/{target.lower()}"
+            st.download_button(f"Download as {target}", b.getvalue(), f"converted.{target.lower()}", mime_type)
 
 def tool_img_to_pdf():
-    st.info("Select multiple images to create a single PDF document.")
+    st.info("Merge multiple images into a single PDF file.")
     uploads = st.file_uploader("Select Images", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
     if uploads:
-        if st.button("Generate PDF"):
+        file_map = {f.name: f for f in uploads}
+        order = st.multiselect("Set Image Order:", list(file_map.keys()), default=list(file_map.keys()))
+        
+        if st.button("Generate PDF") and order:
             imgs = []
-            for f in uploads:
-                i = Image.open(f)
+            for name in order:
+                i = Image.open(file_map[name])
                 if i.mode == "RGBA": i = i.convert("RGB")
                 imgs.append(i)
             
             if imgs:
                 b = BytesIO()
                 imgs[0].save(b, "PDF", save_all=True, append_images=imgs[1:])
-                st.success("PDF generated successfully!")
-                st.download_button("Download PDF", b.getvalue(), "images_merged.pdf", "application/pdf")
+                st.success("PDF Created!")
+                st.download_button("Download PDF", b.getvalue(), "docmint_merged.pdf", "application/pdf")
 
 def tool_merge_pptx():
-    st.info("Merge slides from multiple PowerPoint files. (Note: Complex formatting may vary)")
-    uploads = st.file_uploader("Select PPTX files", type="pptx", accept_multiple_files=True)
+    st.info("Merge slides from multiple PowerPoint files sequentially.")
+    uploads = st.file_uploader("Upload PPTX files", type="pptx", accept_multiple_files=True)
     if uploads:
-        if st.button("Merge Presentations"):
+        file_map = {f.name: f for f in uploads}
+        order = st.multiselect("Set Slide Deck Order:", list(file_map.keys()), default=list(file_map.keys()))
+        
+        if st.button("Merge Presentations") and order:
             try:
                 out_prs = Presentation()
-                # Clear the default blank slide
                 xml = out_prs.slides._sldIdLst
                 sl = list(xml)
-                xml.remove(sl[0])
+                if sl: xml.remove(sl[0])
                 
-                for f in uploads:
-                    in_prs = Presentation(f)
+                for name in order:
+                    in_prs = Presentation(file_map[name])
                     for s in in_prs.slides:
-                        # Create a blank slide in output
-                        layout = out_prs.slide_layouts[6] # 6 is usually blank
+                        layout = out_prs.slide_layouts[6] 
                         dest = out_prs.slides.add_slide(layout)
-                        # Simple Text Box Copying (Robust method)
                         for sh in s.shapes:
                             if hasattr(sh, "text"):
                                 try:
@@ -338,43 +429,41 @@ def tool_merge_pptx():
                                 except: pass
                 b = BytesIO()
                 out_prs.save(b)
-                st.success("Merged!")
-                st.download_button("Download PPTX", b.getvalue(), "merged.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+                st.success("Merged successfully.")
+                st.download_button("Download PPTX", b.getvalue(), "docmint_merged.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
             except Exception as e:
                 st.error(f"Merge Error: {e}")
 
 def tool_pdf_text():
-    st.info("Extract raw text and metadata from PDF.")
+    st.info("Extract raw text from PDF for editing.")
     f = st.file_uploader("Select PDF", type="pdf")
     if f:
         r = PdfReader(f)
-        st.write(f"**Metadata:** {r.metadata}")
         if st.button("Extract Text"):
             text = ""
             for i, p in enumerate(r.pages):
                 text += f"--- Page {i+1} ---\n{p.extract_text()}\n\n"
-            st.text_area("Content", text, height=300)
+            st.text_area("Extracted Content", text, height=300)
             st.download_button("Download .txt", text, "extracted.txt", "text/plain")
 
 def tool_pptx_text():
-    st.info("Extract raw text from PowerPoint slides.")
+    st.info("Extract text content from PowerPoint slides.")
     f = st.file_uploader("Select PPTX", type="pptx")
     if f:
         if st.button("Extract Text"):
             p = Presentation(f)
-            text = []
+            text_list = []
             for i, s in enumerate(p.slides):
                 t = [sh.text for sh in s.shapes if hasattr(sh, "text")]
-                text.append(f"--- Slide {i+1} ---\n" + "\n".join(t))
-            full = "\n\n".join(text)
-            st.text_area("Content", full, height=300)
-            st.download_button("Download .txt", full, "slides.txt", "text/plain")
+                text_list.append(f"--- Slide {i+1} ---\n" + "\n".join(t))
+            full_text = "\n\n".join(text_list)
+            st.text_area("Extracted Content", full_text, height=300)
+            st.download_button("Download .txt", full_text, "slides.txt", "text/plain")
 
 # --- 7. MAIN APP ROUTING ---
 
 render_header()
 
-# Dispatcher
 tool = st.session_state['current_tool']
 
 if tool == "Home":
@@ -400,4 +489,4 @@ elif tool == "PPTX Text":
 
 # Footer
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #888; font-size: 0.8rem;'>© 2024 iLoveDocs Clone | Securely processed in your browser session. No files are stored.</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: gray; font-size: 0.8rem; padding: 20px;'>© 2024 DocMint | Secure Browser Processing</div>", unsafe_allow_html=True)
