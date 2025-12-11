@@ -23,7 +23,7 @@ except Exception:
 st.set_page_config(
     page_title="DocMint - Pro Workspace",
     page_icon="🍃",
-    layout="centered", # Changed to centered for better vertical flow focus
+    layout="centered",
     initial_sidebar_state="expanded"
 )
 
@@ -31,20 +31,36 @@ st.set_page_config(
 if 'current_tool' not in st.session_state:
     st.session_state['current_tool'] = "Compress Docs"
 
-# --- 3. CUSTOM CSS ---
+# --- 3. CUSTOM CSS (UPDATED FOR HIGH CONTRAST & VISIBILITY) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-        color: #1e293b;
+    :root{
+        --bg: #f8fafc;            /* app background */
+        --panel: #ffffff;         /* card/panel background */
+        --muted: #94a3b8;        /* secondary text */
+        --text: #0f172a;         /* primary text */
+        --accent: #0ea5a4;       /* teal accent for sidebar categories */
+        --primary: #0b69ff;      /* main action color (buttons) */
+        --danger: #ef4444;       /* error / remove */
+        --success: #10b981;      /* success */
+        --border: #e6eef6;       /* soft border */
+        --result-bg: #f1f9ff;    /* result box bg */
+        --nav-hover: #e6f6f9;    /* hover for nav */
     }
 
-    /* Sidebar Styling */
+    html, body, [class*="css"] {
+        background-color: var(--bg);
+        font-family: 'Inter', sans-serif;
+        color: var(--text);
+    }
+
+    /* Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #f8fafc;
-        border-right: 1px solid #e2e8f0;
+        background: linear-gradient(180deg, rgba(15,23,42,0.02) 0%, rgba(14,165,164,0.03) 100%);
+        border-right: 1px solid var(--border);
+        padding: 1rem;
     }
 
     /* Logo Area */
@@ -52,53 +68,115 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 1rem 0;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid #e2e8f0;
+        padding: 0.7rem 0;
+        margin-bottom: 0.9rem;
+        border-bottom: 1px solid var(--border);
     }
-    
     .sidebar-title {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--text);
+        letter-spacing: -0.2px;
+    }
+    .sidebar-sub {
+        font-size: 0.82rem;
+        color: var(--muted);
     }
 
-    /* Nav Buttons */
+    /* Sidebar section captions */
+    .stCaption {
+        color: var(--accent) !important;
+        font-weight: 700;
+        margin-top: 0.6rem;
+        margin-bottom: 0.2rem;
+    }
+
+    /* Nav Buttons (make them visible & grouped) */
     div.stButton > button {
         width: 100%;
-        border-radius: 8px;
+        display:flex;
+        align-items:center;
+        gap:10px;
+        justify-content:flex-start;
+        border-radius: 10px;
         border: 1px solid transparent;
         background-color: transparent;
-        color: #475569;
+        color: #334155;
         text-align: left;
-        padding: 0.5rem 1rem;
-        transition: all 0.2s;
+        padding: 0.6rem 0.9rem;
+        transition: all 0.14s ease-in-out;
+        font-weight:600;
     }
-    
     div.stButton > button:hover {
-        background-color: #e2e8f0;
-        color: #0f172a;
+        background-color: var(--nav-hover);
+        color: var(--text);
+        transform: translateY(-1px);
     }
 
-    /* Primary Action Buttons */
+    /* Primary Action Buttons (Streamlit often adds kind="primary") */
     div.stButton > button[kind="primary"] {
-        background-color: #007AFF;
+        background-color: var(--primary);
         color: white;
         border: none;
+        box-shadow: 0 6px 16px rgba(11,105,255,0.12);
+    }
+    /* Make primary buttons full width and high-contrast */
+    button[aria-label="Button"] {
+        outline: none;
     }
 
-    /* Result Area Box */
+    /* Result Area Box (more prominent) */
     .result-box {
-        background-color: #f1f5f9;
-        border: 2px dashed #cbd5e1;
+        background-color: var(--result-bg);
+        border: 1px solid rgba(11,105,255,0.08);
         border-radius: 12px;
-        padding: 2rem;
+        padding: 1.5rem;
         text-align: center;
-        margin-top: 2rem;
+        margin-top: 1.6rem;
+        box-shadow: 0 8px 24px rgba(12, 74, 175, 0.02);
     }
-    
-    h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; text-align: center; }
-    h4 { font-size: 1rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; color: #334155; }
+
+    /* Cards & panels inside main area */
+    .stMarkdown, .stContainer {
+        background: transparent;
+    }
+
+    h3 { 
+        font-size: 1.4rem; 
+        font-weight: 700; 
+        margin-bottom: 1rem; 
+        text-align: left;
+        color: var(--text);
+    }
+    h4 { 
+        font-size: 1rem; 
+        font-weight: 700; 
+        margin-top: 0.9rem; 
+        margin-bottom: 0.5rem; 
+        color: #1f2937; 
+    }
+
+    /* Metrics / small info */
+    .stMetricValue {
+        color: var(--text) !important;
+    }
+    .stMetricLabel {
+        color: var(--muted) !important;
+    }
+
+    /* File uploader styling hint - make it more visible */
+    .stFileUploader {
+        border-radius: 10px;
+        border: 1px dashed var(--border);
+        padding: 0.6rem;
+        background: var(--panel);
+    }
+
+    /* Smaller screen tweaks */
+    @media (max-width: 768px) {
+        .sidebar-logo { gap:8px; }
+        .sidebar-title { font-size:1.1rem; }
+    }
 
 </style>
 """, unsafe_allow_html=True)
@@ -159,8 +237,11 @@ def render_sidebar():
         logo_url = "https://github.com/nitesh4004/Ni30-pdflover/blob/main/docmint.png?raw=true"
         st.markdown(f"""
         <div class="sidebar-logo">
-            <img src="{logo_url}" style="height: 40px; border-radius: 6px;">
-            <div class="sidebar-title">DocMint</div>
+            <img src="{logo_url}" style="height: 44px; width:44px; border-radius: 8px; object-fit:cover;">
+            <div>
+                <div class="sidebar-title">DocMint</div>
+                <div class="sidebar-sub">Pro Workspace</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -185,7 +266,6 @@ def render_sidebar():
         if st.button("📊 Merge PPTX"): st.session_state['current_tool'] = "Merge PPTX"
 
 # --- 6. TOOLS (VERTICAL FLOW) ---
-
 def tool_compress_docs():
     st.markdown(f"### 🗜️ Compress Documents")
     
@@ -405,4 +485,4 @@ else:
     st.info("Select a tool from the sidebar.")
 
 st.markdown("---")
-st.markdown("<div style='text-align:center; color:#94a3b8; font-size:0.8rem;'>© 2024 DocMint by Nitesh Kumar</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#64748b; font-size:0.82rem;'>© 2024 DocMint by Nitesh Kumar</div>", unsafe_allow_html=True)
