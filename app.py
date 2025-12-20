@@ -14,7 +14,7 @@ from pptx import Presentation
 # Jupyter Notebook Libraries
 import nbformat
 from nbconvert import HTMLExporter
-from xhtml2pdf import pisa
+from weasyprint import HTML, CSS # UPDATED: Switched to WeasyPrint
 
 # PDF to Image
 try:
@@ -64,11 +64,10 @@ st.markdown("""
         color: var(--text);
     }
 
-    /* Sidebar */
+    /* Sidebar - Used mainly for branding now */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, rgba(15,23,42,0.02) 0%, rgba(14,165,164,0.03) 100%);
         border-right: 1px solid var(--border);
-        padding: 1rem;
     }
 
     /* Centered Logo Area */
@@ -103,14 +102,19 @@ st.markdown("""
         margin-top: 0px;
     }
 
-    /* Styling the Radio Button to look like a Menu */
-    .stRadio > label {
-        display: none; /* Hide the label "Select Tool" */
-    }
-    div[role="radiogroup"] > label > div:first-of-type {
-        display: none; /* Hide the radio circle if possible */
+    /* Horizontal Toolbar Styling */
+    div[role="radiogroup"] {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        justify-content: center;
     }
     
+    div[data-testid="stRadio"] > label {
+        display: none;
+    }
+
     /* Result Area Box */
     .result-box {
         background-color: var(--result-bg);
@@ -186,75 +190,39 @@ def compress_image_to_target(img, target_kb):
         scale -= 0.1
     return None, "Failed"
 
-def convert_notebook_to_pdf_bytes(notebook_file, font_family="Helvetica"):
+def convert_notebook_to_pdf_bytes(notebook_file):
     """
-    Converts uploaded .ipynb file to PDF bytes using nbconvert -> HTML -> xhtml2pdf.
-    Uses 'basic' template to avoid CSS parsing errors.
+    Converts uploaded .ipynb file to PDF bytes using nbconvert -> HTML -> WeasyPrint.
     """
     try:
         # 1. Read Notebook
         notebook_content = notebook_file.read().decode('utf-8')
         notebook = nbformat.reads(notebook_content, as_version=4)
 
-        # 2. Convert to HTML
+        # 2. Convert to HTML using nbconvert
+        # Using 'lab' template for better visual structure
         html_exporter = HTMLExporter()
-        # Use 'basic' template to avoid complex CSS that breaks xhtml2pdf
-        html_exporter.template_name = 'basic' 
+        html_exporter.template_name = 'lab' 
         (body, resources) = html_exporter.from_notebook_node(notebook)
 
-        # 3. Add Custom CSS for Font & Layout
-        # Since 'basic' has no style, we add our own clean styling here
-        css_style = f"""
-        <style>
-            @page {{
-                size: a4 portrait;
-                margin: 2cm;
-            }}
-            body {{
-                font-family: {font_family}, sans-serif;
-                font-size: 10pt;
-                line-height: 1.5;
-                color: #2D3748;
-            }}
-            /* Basic styling for code cells */
-            pre {{
-                background-color: #f7fafc;
-                padding: 10px;
-                border: 1px solid #e2e8f0;
-                border-radius: 5px;
-                white-space: pre-wrap;
-                font-family: Courier, monospace;
-                font-size: 9pt;
-            }}
-            div.cell {{
-                width: 100%;
-                margin-bottom: 15px;
-            }}
-            h1, h2, h3 {{
-                color: #1a202c;
-                margin-top: 20px;
-                margin-bottom: 10px;
-            }}
-        </style>
-        """
-        full_html = f"<html><head>{css_style}</head><body>{body}</body></html>"
+        # 3. WeasyPrint Conversion
+        # We add some custom CSS to ensure it respects page boundaries
+        custom_css = CSS(string="""
+            @page { size: A4; margin: 1cm; }
+            pre { white-space: pre-wrap; word-wrap: break-word; background: #f5f5f5; padding: 10px; border-radius: 5px;}
+            img { max-width: 100%; height: auto; }
+            div.output_area { overflow: hidden; }
+        """)
 
-        # 4. Convert HTML to PDF
         pdf_buffer = BytesIO()
-        pisa_status = pisa.CreatePDF(
-            src=full_html,
-            dest=pdf_buffer
-        )
-
-        if pisa_status.err:
-            return None, "Error in PDF generation"
+        HTML(string=body).write_pdf(pdf_buffer, stylesheets=[custom_css])
         
         return pdf_buffer.getvalue(), "Success"
 
     except Exception as e:
         return None, str(e)
 
-# --- 5. SIDEBAR ---
+# --- 5. SIDEBAR (Branding Only) ---
 def render_sidebar():
     with st.sidebar:
         # Use local logo if available; otherwise use remote URL
@@ -276,28 +244,28 @@ def render_sidebar():
                 </div>
             </div>
             """, unsafe_allow_html=True)
+        
+        st.info("DocMint is your all-in-one document processing suite.")
 
-        # --- VERTICAL NAVIGATION MENU ---
-        st.write("") # Spacer
-        
-        tool_options = [
-            "Compress Docs",
-            "Notebook to PDF",
-            "Convert Format",
-            "JPG to PDF",
-            "Resize Image",
-            "Image Editor",
-            "Merge PDF",
-            "Split PDF",
-            "Merge PPTX"
-        ]
-        
-        selected_tool = st.radio("Select Tool", tool_options, label_visibility="collapsed")
-        
-        # Update session state
-        st.session_state['current_tool'] = selected_tool
+# --- 6. NAVIGATION (HORIZONTAL) ---
+def render_horizontal_nav():
+    tool_options = [
+        "Compress Docs",
+        "Notebook to PDF",
+        "Convert Format",
+        "JPG to PDF",
+        "Resize Image",
+        "Image Editor",
+        "Merge PDF",
+        "Split PDF",
+        "Merge PPTX"
+    ]
+    
+    # Using st.radio with horizontal=True for top bar navigation
+    selected = st.radio("Choose Tool", tool_options, horizontal=True, label_visibility="collapsed")
+    return selected
 
-# --- 6. TOOLS ---
+# --- 7. TOOLS ---
 def tool_compress_docs():
     st.markdown("### Compress Documents")
     
@@ -494,17 +462,8 @@ def tool_convert_format():
             st.markdown('</div>', unsafe_allow_html=True)
 
 def tool_notebook_to_pdf():
-    st.markdown("### Jupyter Notebook to PDF")
-    
-    # Font Selection
-    st.caption("Customization")
-    font_choice = st.selectbox("Select Font Style", ["Helvetica (Sans-Serif)", "Times New Roman (Serif)"])
-    
-    font_map = {
-        "Helvetica (Sans-Serif)": "Helvetica",
-        "Times New Roman (Serif)": "Times New Roman"
-    }
-    selected_font = font_map[font_choice]
+    st.markdown("### Jupyter Notebook to PDF (Enhanced)")
+    st.caption("Powered by WeasyPrint - Supports modern layouts")
 
     uploaded = st.file_uploader("Upload .ipynb file", type=["ipynb"])
     
@@ -515,20 +474,24 @@ def tool_notebook_to_pdf():
             with st.spinner("Converting Notebook... this may take a moment"):
                 # Reset file pointer if re-running
                 uploaded.seek(0)
-                pdf_bytes, status = convert_notebook_to_pdf_bytes(uploaded, selected_font)
+                pdf_bytes, status = convert_notebook_to_pdf_bytes(uploaded)
                 
                 st.markdown('<div class="result-box">', unsafe_allow_html=True)
                 if pdf_bytes:
-                    st.success(f"Conversion Successful using {selected_font}!")
+                    st.success("Conversion Successful!")
                     st.download_button("Download PDF", pdf_bytes, f"{uploaded.name}.pdf", "application/pdf", type="primary")
                 else:
                     st.error(f"Conversion Failed: {status}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. MAIN ROUTING ---
+# --- 8. MAIN ROUTING ---
 render_sidebar()
-tool = st.session_state['current_tool']
 
+# Render Horizontal Nav at the Top
+tool = render_horizontal_nav()
+st.session_state['current_tool'] = tool
+
+# Tool Logic
 if tool == "Compress Docs": tool_compress_docs()
 elif tool == "Resize Image": tool_resize_image()
 elif tool == "Image Editor": tool_img_editor()
@@ -549,8 +512,6 @@ elif tool == "JPG to PDF":
 elif tool == "Merge PPTX":
      st.markdown("### Merge PPTX")
      st.info("Coming soon in next update!")
-else:
-    st.info("Select a tool from the sidebar.")
 
 st.markdown("---")
 st.markdown("<div style='text-align:center; color:#64748b; font-size:0.82rem;'>© 2024 DocMint by Nitesh Kumar</div>", unsafe_allow_html=True)
