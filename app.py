@@ -103,44 +103,14 @@ st.markdown("""
         margin-top: 0px;
     }
 
-    /* Sidebar section captions */
-    .stCaption {
-        color: var(--accent) !important;
-        font-weight: 700;
-        margin-top: 0.6rem;
-        margin-bottom: 0.2rem;
+    /* Styling the Radio Button to look like a Menu */
+    .stRadio > label {
+        display: none; /* Hide the label "Select Tool" */
     }
-
-    /* Nav Buttons */
-    div.stButton > button {
-        width: 100%;
-        display:flex;
-        align-items:center;
-        gap:10px;
-        justify-content:flex-start;
-        border-radius: 10px;
-        border: 1px solid transparent;
-        background-color: transparent;
-        color: #334155;
-        text-align: left;
-        padding: 0.6rem 0.9rem;
-        transition: all 0.14s ease-in-out;
-        font-weight:600;
+    div[role="radiogroup"] > label > div:first-of-type {
+        display: none; /* Hide the radio circle if possible */
     }
-    div.stButton > button:hover {
-        background-color: var(--nav-hover);
-        color: var(--text);
-        transform: translateY(-1px);
-    }
-
-    /* Primary Action Buttons */
-    div.stButton > button[kind="primary"] {
-        background-color: var(--primary);
-        color: white;
-        border: none;
-        box-shadow: 0 6px 16px rgba(11,105,255,0.12);
-    }
-
+    
     /* Result Area Box */
     .result-box {
         background-color: var(--result-bg);
@@ -219,6 +189,7 @@ def compress_image_to_target(img, target_kb):
 def convert_notebook_to_pdf_bytes(notebook_file, font_family="Helvetica"):
     """
     Converts uploaded .ipynb file to PDF bytes using nbconvert -> HTML -> xhtml2pdf.
+    Uses 'basic' template to avoid CSS parsing errors.
     """
     try:
         # 1. Read Notebook
@@ -227,11 +198,12 @@ def convert_notebook_to_pdf_bytes(notebook_file, font_family="Helvetica"):
 
         # 2. Convert to HTML
         html_exporter = HTMLExporter()
-        html_exporter.template_name = 'classic'
+        # Use 'basic' template to avoid complex CSS that breaks xhtml2pdf
+        html_exporter.template_name = 'basic' 
         (body, resources) = html_exporter.from_notebook_node(notebook)
 
-        # 3. Add Custom CSS for Font
-        # xhtml2pdf supports limited CSS. We inject the font preference.
+        # 3. Add Custom CSS for Font & Layout
+        # Since 'basic' has no style, we add our own clean styling here
         css_style = f"""
         <style>
             @page {{
@@ -241,9 +213,26 @@ def convert_notebook_to_pdf_bytes(notebook_file, font_family="Helvetica"):
             body {{
                 font-family: {font_family}, sans-serif;
                 font-size: 10pt;
+                line-height: 1.5;
+                color: #2D3748;
+            }}
+            /* Basic styling for code cells */
+            pre {{
+                background-color: #f7fafc;
+                padding: 10px;
+                border: 1px solid #e2e8f0;
+                border-radius: 5px;
+                white-space: pre-wrap;
+                font-family: Courier, monospace;
+                font-size: 9pt;
             }}
             div.cell {{
                 width: 100%;
+                margin-bottom: 15px;
+            }}
+            h1, h2, h3 {{
+                color: #1a202c;
+                margin-top: 20px;
                 margin-bottom: 10px;
             }}
         </style>
@@ -288,25 +277,25 @@ def render_sidebar():
             </div>
             """, unsafe_allow_html=True)
 
-        st.caption("NEW TOOLS")
-        if st.button("Compress Docs"): st.session_state['current_tool'] = "Compress Docs"
-
-        st.caption("CONVERTERS")
-        if st.button("Notebook to PDF"): st.session_state['current_tool'] = "Notebook to PDF"
-        if st.button("Convert Format"): st.session_state['current_tool'] = "Convert Format"
-        if st.button("JPG to PDF"): st.session_state['current_tool'] = "JPG to PDF"
-
-        st.caption("IMAGE TOOLS")
-        if st.button("Resize Image"): st.session_state['current_tool'] = "Resize Image"
-        if st.button("Image Editor"): st.session_state['current_tool'] = "Image Editor"
+        # --- VERTICAL NAVIGATION MENU ---
+        st.write("") # Spacer
         
-        st.caption("PDF TOOLS")
-        if st.button("Merge PDF"): st.session_state['current_tool'] = "Merge PDF"
-        if st.button("Split PDF"): st.session_state['current_tool'] = "Split PDF"
+        tool_options = [
+            "Compress Docs",
+            "Notebook to PDF",
+            "Convert Format",
+            "JPG to PDF",
+            "Resize Image",
+            "Image Editor",
+            "Merge PDF",
+            "Split PDF",
+            "Merge PPTX"
+        ]
         
-        st.write("")
-        st.caption("OFFICE TOOLS")
-        if st.button("Merge PPTX"): st.session_state['current_tool'] = "Merge PPTX"
+        selected_tool = st.radio("Select Tool", tool_options, label_visibility="collapsed")
+        
+        # Update session state
+        st.session_state['current_tool'] = selected_tool
 
 # --- 6. TOOLS ---
 def tool_compress_docs():
@@ -507,7 +496,7 @@ def tool_convert_format():
 def tool_notebook_to_pdf():
     st.markdown("### Jupyter Notebook to PDF")
     
-    # Font Selection as requested
+    # Font Selection
     st.caption("Customization")
     font_choice = st.selectbox("Select Font Style", ["Helvetica (Sans-Serif)", "Times New Roman (Serif)"])
     
