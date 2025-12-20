@@ -4,6 +4,7 @@ from io import BytesIO
 import zipfile
 from PIL import Image, ImageOps, ImageFilter
 import base64
+import platform
 
 # PDF Libraries
 from PyPDF2 import PdfReader, PdfWriter
@@ -14,7 +15,7 @@ from pptx import Presentation
 # Jupyter Notebook Libraries
 import nbformat
 from nbconvert import HTMLExporter
-from weasyprint import HTML, CSS # UPDATED: Switched to WeasyPrint
+import pdfkit # UPDATED: Switched to pdfkit
 
 # PDF to Image
 try:
@@ -192,7 +193,7 @@ def compress_image_to_target(img, target_kb):
 
 def convert_notebook_to_pdf_bytes(notebook_file):
     """
-    Converts uploaded .ipynb file to PDF bytes using nbconvert -> HTML -> WeasyPrint.
+    Converts uploaded .ipynb file to PDF bytes using nbconvert -> HTML -> PDFKit (wkhtmltopdf).
     """
     try:
         # 1. Read Notebook
@@ -200,25 +201,48 @@ def convert_notebook_to_pdf_bytes(notebook_file):
         notebook = nbformat.reads(notebook_content, as_version=4)
 
         # 2. Convert to HTML using nbconvert
-        # Using 'lab' template for better visual structure
+        # Using 'classic' or 'lab' template
         html_exporter = HTMLExporter()
-        html_exporter.template_name = 'lab' 
+        html_exporter.template_name = 'classic' 
         (body, resources) = html_exporter.from_notebook_node(notebook)
 
-        # 3. WeasyPrint Conversion
-        # We add some custom CSS to ensure it respects page boundaries
-        custom_css = CSS(string="""
-            @page { size: A4; margin: 1cm; }
-            pre { white-space: pre-wrap; word-wrap: break-word; background: #f5f5f5; padding: 10px; border-radius: 5px;}
-            img { max-width: 100%; height: auto; }
-            div.output_area { overflow: hidden; }
-        """)
-
-        pdf_buffer = BytesIO()
-        HTML(string=body).write_pdf(pdf_buffer, stylesheets=[custom_css])
+        # 3. Configure PDFKit
+        options = {
+            'page-size': 'A4',
+            'margin-top': '0.75in',
+            'margin-right': '0.75in',
+            'margin-bottom': '0.75in',
+            'margin-left': '0.75in',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'quiet': ''
+        }
         
-        return pdf_buffer.getvalue(), "Success"
+        # Check system for wkhtmltopdf binary location
+        path_wkhtmltopdf = None
+        
+        # Common path for Linux/Streamlit Cloud
+        if os.path.exists('/usr/bin/wkhtmltopdf'):
+            path_wkhtmltopdf = '/usr/bin/wkhtmltopdf'
+        # Common path for Local Windows (example)
+        elif os.path.exists(r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'):
+            path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
+            
+        config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf) if path_wkhtmltopdf else None
+        
+        # 4. Convert HTML String to PDF
+        # If config is None, pdfkit will look in system PATH
+        if config:
+            pdf_bytes = pdfkit.from_string(body, False, options=options, configuration=config)
+        else:
+            pdf_bytes = pdfkit.from_string(body, False, options=options)
+            
+        return pdf_bytes, "Success"
 
+    except OSError as e:
+        if "wkhtmltopdf" in str(e).lower():
+            return None, "System dependency 'wkhtmltopdf' not found. If local, install it and add to PATH. If cloud, check packages.txt."
+        return None, str(e)
     except Exception as e:
         return None, str(e)
 
@@ -462,8 +486,8 @@ def tool_convert_format():
             st.markdown('</div>', unsafe_allow_html=True)
 
 def tool_notebook_to_pdf():
-    st.markdown("### Jupyter Notebook to PDF (Enhanced)")
-    st.caption("Powered by WeasyPrint - Supports modern layouts")
+    st.markdown("### Jupyter Notebook to PDF (PDFKit)")
+    st.caption("Powered by PDFKit and wkhtmltopdf.")
 
     uploaded = st.file_uploader("Upload .ipynb file", type=["ipynb"])
     
@@ -482,6 +506,8 @@ def tool_notebook_to_pdf():
                     st.download_button("Download PDF", pdf_bytes, f"{uploaded.name}.pdf", "application/pdf", type="primary")
                 else:
                     st.error(f"Conversion Failed: {status}")
+                    if "wkhtmltopdf" in status:
+                        st.warning("Hint: If running locally, please install 'wkhtmltopdf'. If on Cloud, ensure 'packages.txt' is present.")
                 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. MAIN ROUTING ---
