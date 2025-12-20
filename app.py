@@ -3,12 +3,18 @@ import os
 from io import BytesIO
 import zipfile
 from PIL import Image, ImageOps, ImageFilter
+import base64
 
 # PDF Libraries
 from PyPDF2 import PdfReader, PdfWriter
 
 # PPT Libraries
 from pptx import Presentation
+
+# Jupyter Notebook Libraries
+import nbformat
+from nbconvert import HTMLExporter
+from xhtml2pdf import pisa
 
 # PDF to Image
 try:
@@ -35,7 +41,7 @@ if 'current_tool' not in st.session_state:
 LOCAL_LOGO_PATH = "/mnt/data/ee0a0a38-adb8-4836-9e16-1632d846a6d9.png"
 REMOTE_LOGO_URL = "https://github.com/nitesh4004/Ni30-pdflover/blob/main/docmint.png?raw=true"
 
-# --- 3. CUSTOM CSS (UPDATED FOR LARGER LOGO & SIDEBAR TITLE) ---
+# --- 3. CUSTOM CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -210,21 +216,68 @@ def compress_image_to_target(img, target_kb):
         scale -= 0.1
     return None, "Failed"
 
+def convert_notebook_to_pdf_bytes(notebook_file, font_family="Helvetica"):
+    """
+    Converts uploaded .ipynb file to PDF bytes using nbconvert -> HTML -> xhtml2pdf.
+    """
+    try:
+        # 1. Read Notebook
+        notebook_content = notebook_file.read().decode('utf-8')
+        notebook = nbformat.reads(notebook_content, as_version=4)
+
+        # 2. Convert to HTML
+        html_exporter = HTMLExporter()
+        html_exporter.template_name = 'classic'
+        (body, resources) = html_exporter.from_notebook_node(notebook)
+
+        # 3. Add Custom CSS for Font
+        # xhtml2pdf supports limited CSS. We inject the font preference.
+        css_style = f"""
+        <style>
+            @page {{
+                size: a4 portrait;
+                margin: 2cm;
+            }}
+            body {{
+                font-family: {font_family}, sans-serif;
+                font-size: 10pt;
+            }}
+            div.cell {{
+                width: 100%;
+                margin-bottom: 10px;
+            }}
+        </style>
+        """
+        full_html = f"<html><head>{css_style}</head><body>{body}</body></html>"
+
+        # 4. Convert HTML to PDF
+        pdf_buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(
+            src=full_html,
+            dest=pdf_buffer
+        )
+
+        if pisa_status.err:
+            return None, "Error in PDF generation"
+        
+        return pdf_buffer.getvalue(), "Success"
+
+    except Exception as e:
+        return None, str(e)
+
 # --- 5. SIDEBAR ---
 def render_sidebar():
     with st.sidebar:
         # Use local logo if available; otherwise use remote URL
         logo_to_show = LOCAL_LOGO_PATH if os.path.exists(LOCAL_LOGO_PATH) else REMOTE_LOGO_URL
 
-        # Markup wrapper so CSS class can be applied for exact sizing & centering
+        # Markup wrapper
         if os.path.exists(LOCAL_LOGO_PATH):
-            # For local file use st.image (reliable for local assets)
             st.markdown('<div class="sidebar-logo-wrap">', unsafe_allow_html=True)
             st.image(LOCAL_LOGO_PATH, use_column_width=False, width=110)
             st.markdown(f"<div style='text-align:center;'><div class='sidebar-title'>DocMint</div><div class='sidebar-sub'>Web App — Pro Workspace</div></div>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-            # For remote URL, use HTML <img> to apply class
             st.markdown(f"""
             <div class="sidebar-logo-wrap">
                 <img src="{REMOTE_LOGO_URL}" class="sidebar-logo-img" />
@@ -238,24 +291,24 @@ def render_sidebar():
         st.caption("NEW TOOLS")
         if st.button("Compress Docs"): st.session_state['current_tool'] = "Compress Docs"
 
-        st.caption("IMAGE TOOLS")
-        if st.button("Resize Image"): st.session_state['current_tool'] = "Resize Image"
-        if st.button("Image Editor"): st.session_state['current_tool'] = "Image Editor"
+        st.caption("CONVERTERS")
+        if st.button("Notebook to PDF"): st.session_state['current_tool'] = "Notebook to PDF"
         if st.button("Convert Format"): st.session_state['current_tool'] = "Convert Format"
         if st.button("JPG to PDF"): st.session_state['current_tool'] = "JPG to PDF"
 
-        st.write("")
+        st.caption("IMAGE TOOLS")
+        if st.button("Resize Image"): st.session_state['current_tool'] = "Resize Image"
+        if st.button("Image Editor"): st.session_state['current_tool'] = "Image Editor"
+        
         st.caption("PDF TOOLS")
         if st.button("Merge PDF"): st.session_state['current_tool'] = "Merge PDF"
         if st.button("Split PDF"): st.session_state['current_tool'] = "Split PDF"
-        if st.button("PDF to JPG"): st.session_state['current_tool'] = "PDF to JPG"
-        if st.button("PDF Text"): st.session_state['current_tool'] = "PDF Text"
         
         st.write("")
         st.caption("OFFICE TOOLS")
         if st.button("Merge PPTX"): st.session_state['current_tool'] = "Merge PPTX"
 
-# --- 6. TOOLS (VERTICAL FLOW) ---
+# --- 6. TOOLS ---
 def tool_compress_docs():
     st.markdown("### Compress Documents")
     
@@ -451,6 +504,38 @@ def tool_convert_format():
             st.download_button(f"Download {target}", b.getvalue(), f"converted.{target.lower()}", mime, type="primary")
             st.markdown('</div>', unsafe_allow_html=True)
 
+def tool_notebook_to_pdf():
+    st.markdown("### Jupyter Notebook to PDF")
+    
+    # Font Selection as requested
+    st.caption("Customization")
+    font_choice = st.selectbox("Select Font Style", ["Helvetica (Sans-Serif)", "Times New Roman (Serif)"])
+    
+    font_map = {
+        "Helvetica (Sans-Serif)": "Helvetica",
+        "Times New Roman (Serif)": "Times New Roman"
+    }
+    selected_font = font_map[font_choice]
+
+    uploaded = st.file_uploader("Upload .ipynb file", type=["ipynb"])
+    
+    if uploaded:
+        st.write("File loaded. Ready to convert.")
+        
+        if st.button("Convert to PDF", type="primary", use_container_width=True):
+            with st.spinner("Converting Notebook... this may take a moment"):
+                # Reset file pointer if re-running
+                uploaded.seek(0)
+                pdf_bytes, status = convert_notebook_to_pdf_bytes(uploaded, selected_font)
+                
+                st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                if pdf_bytes:
+                    st.success(f"Conversion Successful using {selected_font}!")
+                    st.download_button("Download PDF", pdf_bytes, f"{uploaded.name}.pdf", "application/pdf", type="primary")
+                else:
+                    st.error(f"Conversion Failed: {status}")
+                st.markdown('</div>', unsafe_allow_html=True)
+
 # --- 7. MAIN ROUTING ---
 render_sidebar()
 tool = st.session_state['current_tool']
@@ -461,6 +546,7 @@ elif tool == "Image Editor": tool_img_editor()
 elif tool == "Merge PDF": tool_merge_pdf()
 elif tool == "Split PDF": tool_split_pdf()
 elif tool == "Convert Format": tool_convert_format()
+elif tool == "Notebook to PDF": tool_notebook_to_pdf()
 elif tool == "JPG to PDF":
     st.markdown("### JPG to PDF")
     u = st.file_uploader("Upload Images", type=["png", "jpg"], accept_multiple_files=True)
@@ -471,6 +557,9 @@ elif tool == "JPG to PDF":
         st.markdown('<div class="result-box">', unsafe_allow_html=True)
         st.download_button("Download PDF", b.getvalue(), "docmint_images.pdf", "application/pdf", type="primary")
         st.markdown('</div>', unsafe_allow_html=True)
+elif tool == "Merge PPTX":
+     st.markdown("### Merge PPTX")
+     st.info("Coming soon in next update!")
 else:
     st.info("Select a tool from the sidebar.")
 
