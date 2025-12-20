@@ -3,3 +3,6 @@ PyPDF2
 Pillow
 python-pptx
 pdf2image
+nbformat
+nbconvert
+xhtml2pdf
