@@ -1,6 +1,3 @@
 poppler-utils
-pandoc
-pkg-config
-libcairo2-dev
-python3-dev
-libgirepository1.0-dev
+libpango-1.0-0
+libpangoft2-1.0-0
