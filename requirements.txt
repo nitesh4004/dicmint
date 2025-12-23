@@ -1,8 +1,3 @@
 streamlit
 Pillow
 PyPDF2
-python-pptx
-nbformat
-nbconvert
-pdfkit
-pdf2image
