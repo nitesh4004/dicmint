@@ -1,3 +1,1 @@
-streamlit
-Pillow
-PyPDF2
+streamlit PyPDF2 python-pptx pdf2image Pillow nbformat nbconvert pdfkit pdf2docx reportlab
