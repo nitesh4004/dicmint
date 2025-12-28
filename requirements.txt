@@ -1,1 +1,1 @@
-streamlit PyPDF2 python-pptx pdf2image Pillow nbformat nbconvert pdfkit pdf2docx reportlab
+streamlit PyPDF2 python-pptx pdf2image Pillow nbformat nbconvert pdfkit pdf2docx reportlab rembg opencv-python-headless numpy imgkit
