@@ -8,7 +8,7 @@ nbconvert
 pdfkit
 pdf2docx
 reportlab
-rembg
 opencv-python-headless
 imgkit
 numpy
+mediapipe
