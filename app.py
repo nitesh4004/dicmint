@@ -40,18 +40,13 @@ try:
 except ImportError:
     HAS_IMGKIT = False
 
-# 4. Advanced Image Libraries (RemBG, OpenCV)
-try:
-    from rembg import remove
-    HAS_REMBG = True
-except ImportError:
-    HAS_REMBG = False
-
+# 4. Advanced Image Libraries (MediaPipe & OpenCV)
 try:
     import cv2
-    HAS_CV2 = True
+    import mediapipe as mp
+    HAS_CV2_MEDIAPIPE = True
 except ImportError:
-    HAS_CV2 = False
+    HAS_CV2_MEDIAPIPE = False
 
 # 5. PDF to Image
 try:
@@ -373,28 +368,51 @@ def tool_upscale_image():
             st.markdown('</div>', unsafe_allow_html=True)
 
 def tool_remove_bg():
-    st.markdown("### Remove background")
-    if not HAS_REMBG:
-        st.error("Library `rembg` not found. Install it via `pip install rembg`.")
+    st.markdown("### Remove background (MediaPipe)")
+    st.caption("Powered by Google MediaPipe. Best for portraits/people.")
+    
+    if not HAS_CV2_MEDIAPIPE:
+        st.error("Libraries `mediapipe` or `opencv` missing. Install: `pip install mediapipe opencv-python-headless`")
         return
 
     uploaded = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
     if uploaded:
-        img = Image.open(uploaded)
-        st.image(img, caption="Original", width=200)
+        # Convert uploaded file to OpenCV format
+        file_bytes = np.asarray(bytearray(uploaded.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, 1) # BGR
+        
+        st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), caption="Original", width=200)
         
         if st.button("Remove Background", type="primary"):
-            with st.spinner("Removing background (this relies on AI model)..."):
-                try:
-                    output = remove(img)
+            with st.spinner("Processing with MediaPipe..."):
+                mp_selfie_segmentation = mp.solutions.selfie_segmentation
+                
+                # Using Selfie Segmentation model
+                with mp_selfie_segmentation.SelfieSegmentation(model_selection=1) as selfie_segmentation:
+                    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    results = selfie_segmentation.process(image_rgb)
+                    
+                    # Generate mask (0.0 to 1.0)
+                    mask = results.segmentation_mask
+                    condition = mask > 0.5 # Threshold
+                    
+                    # Create RGBA Image
+                    # Convert original to BGRA (adds alpha channel)
+                    image_bgra = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
+                    
+                    # Where condition is FALSE (background), set Alpha to 0
+                    image_bgra[:, :, 3] = np.where(condition, 255, 0).astype(np.uint8)
+                    
+                    # Convert back to PIL for display/download
+                    final_pil = Image.fromarray(cv2.cvtColor(image_bgra, cv2.COLOR_BGRA2RGBA))
+                    
                     b = BytesIO()
-                    output.save(b, format="PNG")
+                    final_pil.save(b, format="PNG")
+                    
                     st.markdown('<div class="result-box">', unsafe_allow_html=True)
-                    st.image(output, caption="No Background", width=200)
-                    st.download_button("Download PNG", b.getvalue(), "no_bg.png", "image/png", type="primary")
+                    st.image(final_pil, caption="Background Removed", width=200)
+                    st.download_button("Download PNG", b.getvalue(), "no_bg_mp.png", "image/png", type="primary")
                     st.markdown('</div>', unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"Error processing image: {e}")
 
 def tool_photo_editor():
     st.markdown("### Photo editor")
@@ -508,7 +526,7 @@ def tool_rotate_image():
 
 def tool_blur_face():
     st.markdown("### Blur Face / Privacy Blur")
-    if not HAS_CV2:
+    if not HAS_CV2_MEDIAPIPE:
         st.error("OpenCV (`opencv-python-headless`) is required.")
         return
 
